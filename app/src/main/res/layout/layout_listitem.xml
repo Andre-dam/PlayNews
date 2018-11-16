@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:paddingHorizontal="5dp"
+    android:paddingVertical="2.5dp"
+    >
+
+
+    <RelativeLayout
+        android:background="#fff"
+        android:elevation="1dp"
+        android:layout_margin="3dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        >
+
+        <ImageView
+
+            android:id="@+id/imageid"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            tools:ignore="ContentDescription" />
+
+        <TextView
+            android:id="@+id/resumetextid"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_above="@+id/resourceid"
+            android:layout_alignTop="@+id/imageid"
+            android:layout_marginStart="20dp"
+            android:layout_toEndOf="@id/imageid"
+            android:fontFamily="@font/merriweather_light"
+            android:text="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam eget ligula eu lectus lobortis condimentum. Aliquam nonummy auctor massa. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Nulla at risus. Quisque purus magna, auctor et, sagittis ac, posuere eu, lectus. Nam mattis, felis ut adipiscing"
+            android:textColor="#000"
+            android:textSize="13sp" />
+
+        <TextView
+            android:id="@+id/resourceid"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignBottom="@+id/imageid"
+            android:layout_marginStart="20dp"
+            android:layout_toEndOf="@id/imageid"
+            android:text="Lorem ipsum "
+            android:textSize="14sp" />
+
+    </RelativeLayout>
+</RelativeLayout>

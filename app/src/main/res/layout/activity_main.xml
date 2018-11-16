@@ -38,10 +38,15 @@
             android:text="DOWNLOADS" />
     </android.support.design.widget.TabLayout>
 
+
     <android.support.v7.widget.RecyclerView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        app:layout_constraintTop_toBottomOf="@+id/tabid">
-    </android.support.v7.widget.RecyclerView>
+        android:id="@+id/recyclerid"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginVertical="2.5dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tabid"></android.support.v7.widget.RecyclerView>
 
 </android.support.constraint.ConstraintLayout>
