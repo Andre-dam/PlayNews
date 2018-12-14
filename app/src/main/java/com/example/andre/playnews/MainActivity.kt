@@ -93,6 +93,7 @@ class MainActivity : AppCompatActivity() {
                     Log.i("DebugTAG",element.description)
                     Log.i("DebugTAG",element.link)
                     Log.i("DebugTAG",element.pubDate)
+                    Log.i("DebugTAG",element.img)
                     Log.i("DebugTAG","\n")
 
                     val query_temp = news(element.description)
@@ -100,10 +101,7 @@ class MainActivity : AppCompatActivity() {
                     query_temp.image = img
                     myFeed.add(query_temp)
                 }
-
-
                 //Log.i("DebugTAG",lines)
-
                 return true
             }catch (e: IOException){
                 Log.i("DebugTAG",e.toString())
@@ -116,6 +114,4 @@ class MainActivity : AppCompatActivity() {
             //}
         }
     }
-
-
 }

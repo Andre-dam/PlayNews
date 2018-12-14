@@ -1,5 +1,7 @@
 package com.example.andre.playnews
 
+import android.util.Log
+import android.util.Xml
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserException
 import org.xmlpull.v1.XmlPullParserFactory
@@ -98,8 +100,9 @@ object ParserRSS {
         var link: String? = null
         var pubDate: String? = null
         var description: String? = null
+        var img: String? = null
         parser.require(XmlPullParser.START_TAG, null, "item")
-        while (parser.next() != XmlPullParser.END_TAG) {
+        while (parser.nextTag() != XmlPullParser.END_TAG) {
             if (parser.eventType != XmlPullParser.START_TAG) {
                 continue
             }
@@ -111,12 +114,33 @@ object ParserRSS {
             } else if (name == "pubDate") {
                 pubDate = readData(parser, "pubDate")
             } else if (name == "description") {
-                description = readData(parser, "description")
+                val pair = readDesc(parser, "description")
+                description = pair.first
+                img = pair.second
+                //description = readDescription(parser, "description")
             } else {
                 skip(parser)
             }
         }
-        return ItemRSS(title!!, link!!, pubDate!!, description!!)
+        return ItemRSS(title!!, link!!, pubDate!!, description!!, img!!)
+    }
+
+
+
+    @Throws(IOException::class, XmlPullParserException::class)
+    fun readDesc(parser: XmlPullParser, tag: String): Pair<String,String> {
+        parser.require(XmlPullParser.START_TAG, null, tag)
+        var data = ""
+        var img_link = ""
+        while(parser.nextToken() != XmlPullParser.END_TAG){
+            if(parser.eventType == XmlPullParser.TEXT){
+                data = data + parser.text
+            }else if(parser.eventType == XmlPullParser.CDSECT){
+                img_link = parser.text
+            }
+        }
+        parser.require(XmlPullParser.END_TAG, null, tag)
+        return Pair(data.trim(),img_link)
     }
 
     // Processa tags de forma parametrizada no feed.
@@ -135,7 +159,7 @@ object ParserRSS {
             result = parser.text
             parser.nextTag()
         }
-        return result
+        return result.trim()
     }
 
     @Throws(XmlPullParserException::class, IOException::class)
