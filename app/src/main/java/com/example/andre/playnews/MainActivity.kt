@@ -1,7 +1,10 @@
 package com.example.andre.playnews
 
+import android.arch.persistence.room.Room
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
 import android.os.AsyncTask
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
@@ -14,18 +17,23 @@ import android.support.v7.widget.RecyclerView
 import android.support.v7.widget.Toolbar
 import android.util.Log
 import android.util.Log.i
-import com.example.andre.playnews.ParserRSS.parse
+import android.util.LruCache
+import android.view.Menu
+import android.view.MenuItem
+import android.widget.Button
+import android.widget.ImageButton
+import com.example.andre.playnews.ParserRSS
+import com.example.andre.playnews.R.attr.height
 import org.xmlpull.v1.XmlPullParser
-import java.io.BufferedInputStream
-import java.io.BufferedReader
-import java.io.IOException
-import java.io.InputStreamReader
+import java.io.*
 import java.net.HttpURLConnection
+import java.net.ResponseCache
 import java.net.URL
 import java.nio.charset.StandardCharsets
 
 data class news(var resume: String){
     lateinit var image: Bitmap
+    var title = ""
     var resource = ""
 }
 
@@ -33,75 +41,134 @@ class MainActivity : AppCompatActivity() {
 
     val myFeed = ArrayList<news>()
     lateinit var myAdapter: RecyclerAdapter
+    lateinit var mMemoryCache: LruCache<String, Bitmap>
+    lateinit var db:MyRoomDB
 
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.menu,menu)
+        return super.onCreateOptionsMenu(menu)
+    }
 
+    override fun onOptionsItemSelected(item: MenuItem?): Boolean {
+        val id = item?.itemId
+        if(id==R.id.action_refresh){
+            Log.i("DebugTAG", "reffersh")
+            DownloadRSS().execute("http://leopoldomt.com/if1001/g1brasil.xml")
+        }else if(id==R.id.action_add){
+
+            Log.i("DebugTAG", "add")
+        }
+
+        return super.onOptionsItemSelected(item)
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        db = Room.databaseBuilder(this, MyRoomDB::class.java,"mydb").build()
+
         val myToolbar = findViewById<Toolbar>(R.id.actionbarid)
         setSupportActionBar(myToolbar)
-        /*val query_temp = news("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam eget ligula eu lectus lobortis condimentum. Aliquam nonummy auctor massa. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Nulla at risus. Quisque purus magna, auctor et, sagittis ac, posuere eu, lectus. Nam mattis, felis ut adipiscing")
-        query_temp.image = BitmapFactory.decodeResource(resources,R.mipmap.news)
-        query_temp.resource = "BBC News"
 
-        myFeed.add(query_temp)
-        myFeed.add(query_temp)
-        myFeed.add(query_temp)
-        myFeed.add(query_temp)
-        myFeed.add(query_temp)
-        myFeed.add(query_temp)
-        myFeed.add(query_temp)
-        myFeed.add(query_temp)
-        myFeed.add(query_temp)
-        myFeed.add(query_temp)
-        myFeed.add(query_temp)
-        myFeed.add(query_temp)
-    */
         val vp_adapter = TabAdapter(supportFragmentManager)
         val viewPager = findViewById<ViewPager>(R.id.viewpagerid)
         viewPager.adapter = vp_adapter
 
         val tablayout = findViewById<TabLayout>(R.id.tabid)
         tablayout.setupWithViewPager(viewPager)
-        //val recyclerView = findViewById<RecyclerView>(R.id.recyclerid)
-        //myAdapter = RecyclerAdapter(this,myFeed)
-        //recyclerView.adapter = RecyclerAdapter(this,myFeed)
-        //recyclerView.layoutManager = LinearLayoutManager(this)
-        DownloadRSS().execute("http://leopoldomt.com/if1001/g1brasil.xml")
+
+        //Criação da cache
+        val maxmemory = (Runtime.getRuntime().maxMemory() /1024).toInt()
+        val cacheSize = maxmemory/8
+
+        mMemoryCache = object : LruCache<String, Bitmap>(cacheSize) {
+
+            override fun sizeOf(key: String, bitmap: Bitmap): Int {
+                // The cache size will be measured in kilobytes rather than
+                // number of items.
+                return bitmap.byteCount / 1024
+            }
+        }
+        Log.i("DebugTAG","cache size: "+cacheSize)
+        Log.i("DebugTAG","cache size: "+mMemoryCache.size())
+        //END - Criação da cache
+
     }
 
-    override fun onStart() {
-        super.onStart()
 
-    }
     inner class DownloadRSS(): AsyncTask<String, String, Boolean>() {
+        fun getResizedBitmap(bm: Bitmap, scalefactor: Float, key:String): ByteArray {
+            val width = bm.getWidth();
+            val height = bm.getHeight();
+            val matrix = Matrix();
+            // RESIZE THE BIT MAP
+            matrix.postScale(scalefactor, scalefactor);
+
+            // "RECREATE" THE NEW BITMAP
+            val resizedBitmap = Bitmap.createBitmap(
+                    bm, 0, 0, width, height, matrix, false);
+
+            mMemoryCache.put(key,resizedBitmap)
+            Log.i("DebugTAG","cache size: "+mMemoryCache.size())
+            val stream = ByteArrayOutputStream();
+            resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream);
+            val byteArray = stream.toByteArray();
+            bm.recycle();
+
+            return byteArray
+        }
+
+        private fun getBitmapFromURL(src: String, key: String){
+            try {
+                val url = java.net.URL(src)
+                val connection = url
+                        .openConnection() as HttpURLConnection
+                connection.doInput = true
+                connection.connect()
+                val input = connection.inputStream
+                val bm = getResizedBitmap(BitmapFactory.decodeStream(input),0.3F,key)
+
+                val fos = openFileOutput(key, Context.MODE_PRIVATE) //Utiliza o proprio titulo como chave
+                fos.write(bm)
+                fos.close()
+                Log.i("DebugTAG","Baixou, key :"+key)
+            } catch (e: IOException) {
+                e.printStackTrace()
+            } catch (e: IllegalStateException){
+                e.printStackTrace()
+            }
+        }
+
         override fun doInBackground(vararg params: String?): Boolean {
             val url = URL(params[0])
             val urlConnection = url.openConnection() as HttpURLConnection
             try {
                 val resp = BufferedInputStream(urlConnection.inputStream)
                 val lines = BufferedReader(InputStreamReader(resp, StandardCharsets.UTF_8)).readText()
-                val RSS_list = parse(lines)
 
+                val result = ParserRSS.parse(lines)
+                val tdi = ParserFEED.parse(lines)
+                getBitmapFromURL(tdi.image_url, tdi.title)
+                db.MyDAO().insertAll(Feed(tdi.title,tdi.description,tdi.image_url))
 
                 val img = BitmapFactory.decodeResource(resources,R.mipmap.news)
-                val rsc = "G1"
-
-                for(element in RSS_list){
-                    Log.i("DebugTAG",element.title)
-                    Log.i("DebugTAG",element.description)
-                    Log.i("DebugTAG",element.link)
-                    Log.i("DebugTAG",element.pubDate)
-                    Log.i("DebugTAG",element.img)
+                for(element in result){
+                    //Log.i("DebugTAG",element.title)
+                    //Log.i("DebugTAG",element.description)
+                    //Log.i("DebugTAG",element.link)
+                    //Log.i("DebugTAG",element.pubDate)
+                    //Log.i("DebugTAG",element.img)
                     Log.i("DebugTAG","\n")
 
+                    getBitmapFromURL(element.img, element.title)
                     val query_temp = news(element.description)
-                    query_temp.resource = rsc
+                    query_temp.resource = tdi.title
                     query_temp.image = img
+                    query_temp.title = element.title
+
+                    db.MyDAO().insertAlll(News(element.title,element.description,element.title, tdi.title))
                     myFeed.add(query_temp)
                 }
-                //Log.i("DebugTAG",lines)
                 return true
             }catch (e: IOException){
                 Log.i("DebugTAG",e.toString())
@@ -109,9 +176,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
         override fun onPostExecute(result: Boolean) {
-            //if(result) {
             myAdapter.notifyDataSetChanged()
-            //}
         }
     }
 }

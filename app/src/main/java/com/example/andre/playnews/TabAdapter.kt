@@ -6,7 +6,7 @@ import android.support.v4.app.FragmentPagerAdapter
 
 class TabAdapter(val fmanager: FragmentManager): FragmentPagerAdapter(fmanager){
 
-    val fragments = listOf(MyFeedFragment(),ExploreFragment(), DownloadsFragment())
+    val fragments = listOf(MyFeedFragment(),ExploreFragment())
     val titles = listOf("MY FEED","EXPLORE","DOWNLOADS")
 
     override fun getItem(p0: Int): Fragment {

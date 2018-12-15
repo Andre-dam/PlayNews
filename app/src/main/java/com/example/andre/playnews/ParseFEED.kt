@@ -1,19 +1,16 @@
 package com.example.andre.playnews
 
-
-import android.util.Log
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserException
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.IOException
 import java.io.StringReader
 
-
-object ParserRSS {
+object ParserFEED {
 
     //Este metodo faz o parsing de RSS gerando objetos ItemRSS
     @Throws(XmlPullParserException::class, IOException::class)
-    fun parse(rssFeed: String): List<ItemRSS> {
+    fun parse(rssFeed: String): Tdi {
         val factory = XmlPullParserFactory.newInstance()
         val xpp = factory.newPullParser()
         xpp.setInput(StringReader(rssFeed))
@@ -22,8 +19,8 @@ object ParserRSS {
     }
 
     @Throws(XmlPullParserException::class, IOException::class)
-    fun readRss(parser: XmlPullParser): List<ItemRSS> {
-        val items = ArrayList<ItemRSS>()
+    fun readRss(parser: XmlPullParser): Tdi {
+        var items=Tdi("","","")
         parser.require(XmlPullParser.START_TAG, null, "rss")
         while (parser.next() != XmlPullParser.END_TAG) {
             if (parser.eventType != XmlPullParser.START_TAG) {
@@ -31,7 +28,7 @@ object ParserRSS {
             }
             val name = parser.name
             if (name == "channel") {
-                items.addAll(readChannel(parser))
+                items = (readChannel(parser))
             } else {
                 skip(parser)
             }
@@ -40,8 +37,8 @@ object ParserRSS {
     }
 
     @Throws(IOException::class, XmlPullParserException::class)
-    fun readChannel(parser: XmlPullParser): List<ItemRSS>{
-        val items = ArrayList<ItemRSS>()
+    fun readChannel(parser: XmlPullParser): Tdi{
+        val items=Tdi("","","")
         parser.require(XmlPullParser.START_TAG, null, "channel")
 
         while (parser.next() != XmlPullParser.END_TAG) {
@@ -50,14 +47,39 @@ object ParserRSS {
             }
             val name = parser.name
 
-            if (name == "item") {
-                items.add(readItem(parser))
-            } else {
+            if (name == "title") {
+                items.title = readText(parser)
+            }else if(name == "description"){
+                items.description = readText(parser)
+            }else if(name == "image"){
+                items.image_url = readImage(parser)
+            }  else {
                 skip(parser)
             }
         }
         return items
     }
+
+
+    @Throws(XmlPullParserException::class, IOException::class)
+    fun readImage(parser: XmlPullParser): String {
+
+        var img: String = ""
+        parser.require(XmlPullParser.START_TAG, null, "image")
+        while (parser.nextTag() != XmlPullParser.END_TAG) {
+            if (parser.eventType != XmlPullParser.START_TAG) {
+                continue
+            }
+            val name = parser.name
+            if (name == "url") {
+                img = readData(parser, "url")
+            } else {
+                skip(parser)
+            }
+        }
+        return img
+    }
+
 
     @Throws(XmlPullParserException::class, IOException::class)
     fun readItem(parser: XmlPullParser): ItemRSS {
