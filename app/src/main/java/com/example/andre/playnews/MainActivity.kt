@@ -2,6 +2,7 @@ package com.example.andre.playnews
 
 import android.arch.persistence.room.Room
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
@@ -37,10 +38,20 @@ data class news(var resume: String){
     var resource = ""
 }
 
+data class feed(var resume: String){
+    lateinit var image: Bitmap
+    var title = ""
+    var resource = ""
+}
+
 class MainActivity : AppCompatActivity() {
 
     val myFeed = ArrayList<news>()
+    val myExploration = ArrayList<Tdi>()
+
     lateinit var myAdapter: RecyclerAdapter
+    lateinit var myAdapter2: RecyclerAdapter2
+
     lateinit var mMemoryCache: LruCache<String, Bitmap>
     lateinit var db:MyRoomDB
 
@@ -53,9 +64,11 @@ class MainActivity : AppCompatActivity() {
         val id = item?.itemId
         if(id==R.id.action_refresh){
             Log.i("DebugTAG", "reffersh")
+            myFeed.clear()
             DownloadRSS().execute("http://leopoldomt.com/if1001/g1brasil.xml")
         }else if(id==R.id.action_add){
-
+            val myint = Intent(this,addActivity::class.java)
+            startActivity(myint)
             Log.i("DebugTAG", "add")
         }
 
@@ -96,7 +109,59 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    inner class DownloadRSS(): AsyncTask<String, String, Boolean>() {
+    inner class DownloadRSS(): AsyncTask<String, String, ArrayList<Pair<String,String>>>() {
+        override fun doInBackground(vararg params: String?): ArrayList<Pair<String,String>> {
+            val url = URL(params[0])
+            val urlConnection = url.openConnection() as HttpURLConnection
+            val toDownload = ArrayList<Pair<String,String>>()
+            try {
+                val resp = BufferedInputStream(urlConnection.inputStream)
+                val lines = BufferedReader(InputStreamReader(resp, StandardCharsets.UTF_8)).readText()
+
+                val result = ParserRSS.parse(lines)
+                val tdi = ParserFEED.parse(lines)
+                //getBitmapFromURL(tdi.image_url, tdi.title)
+                toDownload.add(Pair(tdi.image_url, tdi.title))
+
+                db.MyDAO().insertAll(Feed(tdi.title,tdi.description,tdi.image_url))
+                myExploration.add(tdi)
+
+                val img = BitmapFactory.decodeResource(resources,R.mipmap.news)
+                for(element in result){
+                    //Log.i("DebugTAG",element.title)
+                    //Log.i("DebugTAG",element.description)
+                    //Log.i("DebugTAG",element.link)
+                    //Log.i("DebugTAG",element.pubDate)
+                    //Log.i("DebugTAG",element.img)
+                    Log.i("DebugTAG","\n")
+
+                    //getBitmapFromURL(element.img, element.title)
+                    toDownload.add(Pair(element.img, element.title))
+                    val query_temp = news(element.description)
+                    query_temp.resource = tdi.title
+                    query_temp.image = img
+                    query_temp.title = element.title
+
+                    db.MyDAO().insertAlll(News(element.title,element.description,element.title, tdi.title))
+                    myFeed.add(query_temp)
+                }
+                return toDownload
+            }catch (e: IOException){
+                Log.i("DebugTAG",e.toString())
+                return toDownload
+            }
+        }
+        override fun onPostExecute(result: ArrayList<Pair<String,String>>) {
+            myAdapter.notifyDataSetChanged()
+            myAdapter2.notifyDataSetChanged()
+
+            for(i in result){
+                downloadIMG().execute(i)
+            }
+        }
+    }
+    inner class downloadIMG(vararg params: String):AsyncTask<Pair<String,String>, String, Boolean>(){
+
         fun getResizedBitmap(bm: Bitmap, scalefactor: Float, key:String): ByteArray {
             val width = bm.getWidth();
             val height = bm.getHeight();
@@ -117,7 +182,6 @@ class MainActivity : AppCompatActivity() {
 
             return byteArray
         }
-
         private fun getBitmapFromURL(src: String, key: String){
             try {
                 val url = java.net.URL(src)
@@ -139,44 +203,16 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        override fun doInBackground(vararg params: String?): Boolean {
-            val url = URL(params[0])
-            val urlConnection = url.openConnection() as HttpURLConnection
-            try {
-                val resp = BufferedInputStream(urlConnection.inputStream)
-                val lines = BufferedReader(InputStreamReader(resp, StandardCharsets.UTF_8)).readText()
-
-                val result = ParserRSS.parse(lines)
-                val tdi = ParserFEED.parse(lines)
-                getBitmapFromURL(tdi.image_url, tdi.title)
-                db.MyDAO().insertAll(Feed(tdi.title,tdi.description,tdi.image_url))
-
-                val img = BitmapFactory.decodeResource(resources,R.mipmap.news)
-                for(element in result){
-                    //Log.i("DebugTAG",element.title)
-                    //Log.i("DebugTAG",element.description)
-                    //Log.i("DebugTAG",element.link)
-                    //Log.i("DebugTAG",element.pubDate)
-                    //Log.i("DebugTAG",element.img)
-                    Log.i("DebugTAG","\n")
-
-                    getBitmapFromURL(element.img, element.title)
-                    val query_temp = news(element.description)
-                    query_temp.resource = tdi.title
-                    query_temp.image = img
-                    query_temp.title = element.title
-
-                    db.MyDAO().insertAlll(News(element.title,element.description,element.title, tdi.title))
-                    myFeed.add(query_temp)
-                }
-                return true
-            }catch (e: IOException){
-                Log.i("DebugTAG",e.toString())
-                return false
-            }
+        override fun doInBackground(vararg params: Pair<String, String>): Boolean {
+            getBitmapFromURL(params[0].first,params[0].second)
+            return true
         }
-        override fun onPostExecute(result: Boolean) {
+
+        override fun onPostExecute(result: Boolean?) {
             myAdapter.notifyDataSetChanged()
+            myAdapter2.notifyDataSetChanged()
+            super.onPostExecute(result)
         }
     }
+
 }

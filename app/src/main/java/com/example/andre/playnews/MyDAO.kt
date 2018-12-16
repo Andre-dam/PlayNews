@@ -8,10 +8,12 @@ import android.arch.persistence.room.Query
 @Dao
 interface MyDAO{
     @Query("SELECT * from Feed")
-    fun getAll(): List<Feed>
+    fun getAllFeed(): List<Feed>
 
     @Query("SELECT * from News")
     fun getAllNews(): List<News>
+
+
 
     @Insert(onConflict = REPLACE)
     fun insertAll(feed: Feed)
