@@ -8,5 +8,6 @@ data class News(
         @PrimaryKey var title: String,
         var description: String,
         var image: String,
-        var resource: String
+        var resource: String,
+        var link: String
 )
